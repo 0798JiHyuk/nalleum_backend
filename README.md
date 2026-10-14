@@ -1,88 +1,59 @@
-# nalleum_backend
+# Spoiler · 맞춤형 면접 질문 API
 
+지원자의 희망 기업·직무·관심 산업을 입력받아 한국어 면접 질문을 생성하는 Express 백엔드 프로토타입입니다.
 
-# 🚀 Spoiler Backend
-> 초개인화 면접 치트키 **스포일러(Spoiler)** 백엔드 서버
+## 현재 구현과 계획
+| 구분 | 내용 |
+|---|---|
+| 구현 | POST /api/interview-questions, GET /health |
+| 구현 | 필수 입력 검사, OpenAI 호출, 최대 3개 질문 정리 |
+| 별도 코드 | src/db/index.js의 메모리 저장소 — 현재 server.js에 연결되지 않음 |
+| 후속 계획 | 뉴스 수집, Firestore 영속 저장, FCM 푸시, 사용자 인증 |
 
-취준생이 설정한 **관심 기업 · 직무**를 기반으로  
-기업 뉴스를 수집 → 면접 질문 형태로 가공 → **푸시 알림(Ping)** 으로 전달하는 서버입니다.
+현재 실행 코드는 **JavaScript / CommonJS**입니다. TypeScript, Firestore, FCM이 적용된 운영 서버로 소개하지 않습니다.
 
----
+## 실행
+```bash
+npm ci
+npm start
+```
 
-## 📌 핵심 역할
+`.env`에 설정합니다.
+```dotenv
+PORT=3000
+OPENAI_API_KEY=your-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
 
-- 기업/산업 뉴스 수집 (외부 API, RSS)
-- 뉴스 → **면접 예상 질문 + 답변 가이드** 생성 (LLM)
-- 사용자 맞춤 **푸시 알림(Firebase FCM)** 발송
-- 알림 로그 및 히스토리 관리
-- 프론트엔드와 명확한 **API Contract 기반 협업**
+키가 없어도 서버와 헬스체크는 동작하며, 질문 생성은 503을 반환합니다. 실제 생성에는 외부 API 자격 증명과 사용 비용이 필요합니다.
 
----
+## API 계약
+`POST /api/interview-questions`
+```json
+{
+  "name": "지원자",
+  "company": "지원 기업",
+  "role": "백엔드 개발",
+  "major": "IT 서비스",
+  "certifications": "없음"
+}
+```
 
-## 🧠 서비스 개요
+응답: `{ "questions": ["질문 1", "질문 2", "질문 3"] }`
 
-**문제**
-- 취준생은 정보가 부족한 게 아니라,  
-  **정보를 면접에 쓰는 형태로 가공할 시간이 부족**함
+name, company, role, major는 공백이 아닌 문자열이며 각 500자 이내입니다. certifications는 선택 문자열이며 2,000자 이내입니다. 모델 출력에 따라 질문 개수가 3개보다 적을 수 있습니다.
 
-**해결**
-- 뉴스를 단순 요약하지 않고  
-  👉 *“면접에서 이렇게 나옵니다”* 형태로 재구성
-- 앱을 열지 않아도 **잠금화면 푸시 알림**으로 핵심 전달
+| 상태 | 의미 |
+|---|---|
+| 200 | 생성 성공 |
+| 400 | 입력 오류 |
+| 503 | AI 연동 미설정 |
+| 500 | 외부 API 호출 실패 |
 
----
+## 구조 및 개선 기록
+`server.js`에서 요청 검사 → 프롬프트 구성 → 모델 호출 → 응답 정리를 수행합니다.
+이번 정리에서 키 미설정 시 클라이언트 생성 오류를 방지하고 입력 타입·길이를 검증하며 외부 오류 상세의 클라이언트 노출을 제거했습니다.
 
-## 🏗️ 아키텍처 개요
-
-[ News API / RSS ]
-↓
-(Backend A)
-뉴스 수집 · 전처리
-↓
-(LLM 처리)
-요약 + 질문 생성
-↓
-(Backend B)
-API 응답 구성
-↓
-[ Firebase FCM ]
-푸시 알림 발송
-↓
-[ Mobile App ]
-
-
----
-
-## ⚙️ 기술 스택
-
-- **Runtime:** Node.js
-- **Framework:** Express (or Fastify)
-- **Language:** TypeScript
-- **AI:** OpenAI API (GPT-4o mini)
-- **Database:** Firebase Firestore (해커톤 MVP는 in-memory mock 사용)
-- **Push Notification:** Firebase Cloud Messaging (FCM)
-- **Deploy:** Serverless / Cloud Functions (선택)
-
----
-
-## 👥 역할 분리 (Backend Contract)
-
-### Backend A – 외부 연동 & 데이터 레이어
-
-- 뉴스 API / RSS 수집
-- OpenAI API 연동
-- Firestore 연결
-- FCM 푸시 발송
-- 환경변수 및 키 관리
-
-### Backend B – 서비스 로직 & API 레이어
-
-- API 엔드포인트 설계
-- 비즈니스 로직 조합
-- 응답 포맷 통일
-- 데모 안정성 책임
-
-> ⚠️ 각자 영역 코드 직접 수정 금지 (요청은 OK)
-
----
-
+## 협업 및 다음 단계
+기존 Backend A(외부 연동·데이터) / Backend B(API·서비스) 역할 분리를 유지합니다. 실제 담당 영역은 팀 기록에 따라 구분합니다.
+인증, 호출 제한, 뉴스 연동, 영속 저장, 모델 응답 검증을 보강한 뒤 운영 배포를 검토합니다.
