@@ -21,9 +21,7 @@ if (!OPENAI_API_KEY) {
 }
 
 // ✅ OpenAI Client (Chat Completions 전용)
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
 /**
  * 면접 질문 프롬프트 생성
@@ -58,15 +56,15 @@ app.post("/api/interview-questions", async (req, res) => {
   try {
     const { name, company, role, major, certifications } = req.body || {};
 
-    if (!name || !company || !role || !major) {
+    if (![name, company, role, major].every(value => typeof value === "string" && value.trim().length > 0 && value.length <= 500) || (certifications != null && (typeof certifications !== "string" || certifications.length > 2000))) {
       return res.status(400).json({
         error: "name, company, role, major are required",
       });
     }
 
     if (!OPENAI_API_KEY) {
-      return res.status(500).json({
-        error: "OPENAI_API_KEY is not set",
+      return res.status(503).json({
+        error: "Interview generation is not configured",
       });
     }
 
@@ -108,7 +106,6 @@ app.post("/api/interview-questions", async (req, res) => {
     console.error(err);
     return res.status(500).json({
       error: "OpenAI API error",
-      details: err.message,
     });
   }
 });
